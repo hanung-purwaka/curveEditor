@@ -631,6 +631,11 @@
     const jsonFileInput = document.getElementById("jsonFileInput");
 
     const canvasPadding = { top: 24, right: 24, bottom: 38, left: 54 };
+    const X_AXIS_LABELS = [
+      0, 4, 5, 8, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
+    ];
+    const Y_AXIS_LABELS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+    const DISPLAY_X_MAX = 100;
 
     function roundNumber(value, digits = 10) {
       return Number.parseFloat(Number(value).toFixed(digits));
@@ -638,6 +643,14 @@
 
     function clamp(value, min, max) {
       return Math.min(max, Math.max(min, value));
+    }
+
+    function normalizedTimeToDisplay(time) {
+      return time * DISPLAY_X_MAX;
+    }
+
+    function displayTimeToNormalized(time) {
+      return time / DISPLAY_X_MAX;
     }
 
     function findCurveFields(jsonData) {
@@ -669,7 +682,7 @@
 
     function createPointTemplate(time, value, referencePoint) {
       const point = {
-        time: roundNumber(clamp(time, 0, 100), 4),
+        time: roundNumber(clamp(time, 0, 1), 4),
         value: roundNumber(clamp(value, 0, 1), 4),
         inSlope: 0,
         outSlope: 0,
@@ -696,12 +709,12 @@
 
       if (curve.m_Curve.length === 0) {
         curve.m_Curve.push(createPointTemplate(0, 0, referencePoint));
-        curve.m_Curve.push(createPointTemplate(100, 0, referencePoint));
+        curve.m_Curve.push(createPointTemplate(1, 0, referencePoint));
         return;
       }
 
       curve.m_Curve.forEach((point) => {
-        point.time = roundNumber(clamp(Number(point.time) || 0, 0, 100), 4);
+        point.time = roundNumber(clamp(Number(point.time) || 0, 0, 1), 4);
         point.value = roundNumber(clamp(Number(point.value) || 0, 0, 1), 4);
       });
 
@@ -715,10 +728,10 @@
       }
 
       const lastPoint = curve.m_Curve[curve.m_Curve.length - 1];
-      if (lastPoint.time !== 100) {
-        curve.m_Curve.push(createPointTemplate(100, lastPoint.value, lastPoint));
+      if (lastPoint.time !== 1) {
+        curve.m_Curve.push(createPointTemplate(1, lastPoint.value, lastPoint));
       } else {
-        lastPoint.time = 100;
+        lastPoint.time = 1;
       }
     }
 
@@ -743,7 +756,7 @@
 
         point.time = roundNumber(point.time);
         point.value = roundNumber(point.value);
-        point.time = clamp(point.time, 0, 100);
+        point.time = clamp(point.time, 0, 1);
         point.value = clamp(point.value, 0, 1);
         point.inSlope = Number.isFinite(inSlope) ? inSlope : 0;
         point.outSlope = Number.isFinite(outSlope) ? outSlope : 0;
@@ -856,7 +869,7 @@
 
       if (state.selectedIndex >= 0 && points[state.selectedIndex]) {
         const point = points[state.selectedIndex];
-        selectionMetaEl.textContent = `Selected: t=${roundNumber(point.time, 4)}, v=${roundNumber(point.value, 4)}`;
+        selectionMetaEl.textContent = `Selected: t=${roundNumber(normalizedTimeToDisplay(point.time), 4)}, v=${roundNumber(point.value, 4)}`;
       } else {
         selectionMetaEl.textContent = "Selected: none";
       }
@@ -870,7 +883,7 @@
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${index + 1}</td>
-          <td><input type="number" step="0.001" min="0" value="${point.time}"></td>
+          <td><input type="number" step="0.001" min="0" max="100" value="${roundNumber(normalizedTimeToDisplay(point.time), 4)}"></td>
           <td><input type="number" step="0.001" value="${point.value}"></td>
           <td>${roundNumber(point.inSlope, 6)}</td>
           <td>${roundNumber(point.outSlope, 6)}</td>
@@ -881,7 +894,7 @@
         const selectButton = row.querySelector("button");
 
         timeInput.addEventListener("change", () => {
-          point.time = clamp(Number(timeInput.value) || 0, 0, 100);
+          point.time = roundNumber(displayTimeToNormalized(clamp(Number(timeInput.value) || 0, 0, 100)), 4);
           applySlopeModel();
           render();
         });
@@ -931,10 +944,37 @@
       };
     }
 
+    function xValueToRatio(value) {
+      const clampedValue = clamp(value, X_AXIS_LABELS[0], X_AXIS_LABELS[X_AXIS_LABELS.length - 1]);
+      const lastIndex = X_AXIS_LABELS.length - 1;
+
+      for (let i = 0; i < lastIndex; i += 1) {
+        const start = X_AXIS_LABELS[i];
+        const end = X_AXIS_LABELS[i + 1];
+        if (clampedValue <= end) {
+          const localRatio = end === start ? 0 : (clampedValue - start) / (end - start);
+          return (i + localRatio) / lastIndex;
+        }
+      }
+
+      return 1;
+    }
+
+    function xRatioToValue(ratio) {
+      const clampedRatio = clamp(ratio, 0, 1);
+      const lastIndex = X_AXIS_LABELS.length - 1;
+      const scaled = clampedRatio * lastIndex;
+      const index = Math.min(lastIndex - 1, Math.floor(scaled));
+      const localRatio = scaled - index;
+      const start = X_AXIS_LABELS[index];
+      const end = X_AXIS_LABELS[index + 1];
+      return start + (end - start) * localRatio;
+    }
+
     function toCanvasPoint(point) {
       const rect = chartRect();
       const bounds = getYBounds();
-      const x = rect.x + (point.time / 100) * rect.width;
+      const x = rect.x + xValueToRatio(normalizedTimeToDisplay(point.time)) * rect.width;
       const y = rect.y + (1 - (point.value - bounds.min) / (bounds.max - bounds.min)) * rect.height;
       return { x, y };
     }
@@ -944,10 +984,10 @@
       const bounds = getYBounds();
       const clampedX = Math.min(rect.x + rect.width, Math.max(rect.x, x));
       const clampedY = Math.min(rect.y + rect.height, Math.max(rect.y, y));
-      const time = ((clampedX - rect.x) / rect.width) * 100;
+      const time = displayTimeToNormalized(xRatioToValue((clampedX - rect.x) / rect.width));
       const value = bounds.min + (1 - (clampedY - rect.y) / rect.height) * (bounds.max - bounds.min);
       return {
-        time: roundNumber(clamp(time, 0, 100), 4),
+        time: roundNumber(clamp(time, 0, 1), 4),
         value: roundNumber(clamp(value, 0, 1), 4)
       };
     }
@@ -967,16 +1007,16 @@
       ctx.strokeStyle = "rgba(28, 28, 28, 0.08)";
       ctx.lineWidth = 1;
 
-      for (let i = 0; i <= 10; i += 1) {
-        const x = rect.x + (rect.width / 10) * i;
+      for (const tickValue of [0, ...X_AXIS_LABELS]) {
+        const x = rect.x + xValueToRatio(tickValue) * rect.width;
         ctx.beginPath();
         ctx.moveTo(x, rect.y);
         ctx.lineTo(x, rect.y + rect.height);
         ctx.stroke();
       }
 
-      for (let i = 0; i <= 6; i += 1) {
-        const y = rect.y + (rect.height / 6) * i;
+      for (const tickValue of Y_AXIS_LABELS) {
+        const y = rect.y + (1 - tickValue) * rect.height;
         ctx.beginPath();
         ctx.moveTo(rect.x, y);
         ctx.lineTo(rect.x + rect.width, y);
@@ -987,16 +1027,17 @@
       ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
 
       ctx.fillStyle = "#6a6258";
-      ctx.font = '12px "Avenir Next", "Segoe UI", sans-serif';
+      ctx.font = '10px "Avenir Next", "Segoe UI", sans-serif';
       ctx.textAlign = "center";
-      for (let i = 0; i <= 10; i += 1) {
-        const tickValue = i * 10;
-        const tickX = rect.x + (rect.width / 10) * i;
+      for (const tickValue of X_AXIS_LABELS) {
+        const tickX = rect.x + xValueToRatio(tickValue) * rect.width;
         ctx.fillText(`${tickValue}`, tickX, rect.y + rect.height + 22);
       }
       ctx.textAlign = "left";
-      ctx.fillText(`${roundNumber(bounds.max, 3)}`, 8, rect.y + 4);
-      ctx.fillText(`${roundNumber(bounds.min, 3)}`, 8, rect.y + rect.height);
+      for (const tickValue of Y_AXIS_LABELS) {
+        const y = rect.y + (1 - tickValue) * rect.height;
+        ctx.fillText(`${tickValue}`, 8, y + (tickValue === 1 ? 4 : 0));
+      }
 
       for (const curveName of state.curveNames) {
         if (!state.visibleCurves.has(curveName)) continue;
@@ -1063,7 +1104,7 @@
       if (state.selectedIndex < 0) return;
       const points = getCurvePoints();
       if (points.length <= 2) {
-        updateStatus("The endpoint keys at 0 and 100 are required.");
+        updateStatus("The endpoint keys at chart positions 0 and 100 are required.");
         return;
       }
 
@@ -1076,7 +1117,7 @@
     function duplicateSelectedPoint() {
       const selected = getCurvePoints()[state.selectedIndex];
       if (!selected) return;
-      addPoint(Math.min(100, selected.time + 1), selected.value);
+      addPoint(Math.min(1, selected.time + 0.01), selected.value);
     }
 
     function addMidpoint() {
@@ -1146,7 +1187,7 @@
 
       const point = fromCanvasPoint(x, y);
       addPoint(point.time, point.value);
-      updateStatus(`Point added at time ${point.time}, value ${point.value}`);
+      updateStatus(`Point added at time ${roundNumber(normalizedTimeToDisplay(point.time), 4)}, value ${point.value}`);
     });
 
     window.addEventListener("mousemove", (event) => {
