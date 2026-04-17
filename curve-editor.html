@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curve JSON Tool</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --panel: rgba(255, 250, 242, 0.92);
+      --panel-strong: #fffaf2;
+      --ink: #1c1c1c;
+      --muted: #6a6258;
+      --accent: #c4572a;
+      --accent-strong: #8e3410;
+      --line: rgba(28, 28, 28, 0.12);
+      --shadow: 0 18px 40px rgba(64, 45, 22, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(196, 87, 42, 0.18), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(31, 117, 98, 0.15), transparent 30%),
+        linear-gradient(160deg, #f5efe6 0%, #efe8dc 100%);
+    }
+
+    .shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent-strong);
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2rem, 4vw, 3.8rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 900px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar,
+    .workspace {
+      padding: 20px;
+    }
+
+    .section + .section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .field,
+    .row {
+      display: grid;
+      gap: 8px;
+    }
+
+    .curve-toggle-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .curve-toggle {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel-strong);
+    }
+
+    .curve-toggle input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+    }
+
+    .curve-toggle button {
+      width: auto;
+      padding: 8px 12px;
+      border-radius: 10px;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .row.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    input,
+    select,
+    button,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 11px 13px;
+      font: inherit;
+      color: var(--ink);
+      background: var(--panel-strong);
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button.primary {
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      border-color: transparent;
+    }
+
+    button.ghost {
+      background: transparent;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .workspace {
+      display: grid;
+      gap: 16px;
+    }
+
+    .canvas-card {
+      padding: 16px;
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.4));
+      border: 1px solid rgba(255, 255, 255, 0.7);
+    }
+
+    .canvas-wrap {
+      position: relative;
+      border-radius: 18px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(196, 87, 42, 0.06), rgba(31, 117, 98, 0.03)),
+        #fffdf9;
+      border: 1px solid var(--line);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: min(60vw, 560px);
+      cursor: crosshair;
+    }
+
+    .legend {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .points-table {
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.45);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 560px;
+    }
+
+    th,
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    th {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.5);
+      position: sticky;
+      top: 0;
+    }
+
+    td input {
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
+
+    .status {
+      min-height: 20px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .note {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(196, 87, 42, 0.08);
+      color: var(--accent-strong);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 1020px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div class="eyebrow">Curve Tool</div>
+      <h1>Build points, preview the curve, export the same JSON shape.</h1>
+      <p>This editor reads the Unity-style curve objects in your level config, lets you move or add points visually, and saves the JSON back with matching keyframe fields. It can display the four line options together in one chart while keeping one active curve selected for editing.</p>
+    </div>
+
+    <div class="layout">
+      <aside class="panel sidebar">
+        <div class="section">
+          <h2>Config</h2>
+          <div class="field" style="margin-bottom:10px;">
+            <label for="versionInput">Config Name</label>
+            <input id="versionInput" type="text" value="JIH|Hard|Default">
+          </div>
+          <div class="field">
+            <label>Curves</label>
+            <div id="curveToggleList" class="curve-toggle-list"></div>
+          </div>
+          <p class="note">Chart scale is fixed to match the board: X axis <code>0..100</code>, Y axis <code>0..1</code>.</p>
+        </div>
+
+        <div class="section">
+          <h2>File Actions</h2>
+          <div class="field">
+            <label for="jsonFileInput">Load Existing JSON</label>
+            <input id="jsonFileInput" type="file" accept=".json,application/json">
+          </div>
+          <div class="button-row">
+            <button id="resetSampleBtn" class="ghost" type="button">Reset Sample</button>
+            <button id="downloadBtn" class="primary" type="button">Download JSON</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Point Actions</h2>
+          <div class="button-row">
+            <button id="addPointBtn" type="button">Add Midpoint</button>
+            <button id="sortPointsBtn" type="button">Sort Points</button>
+          </div>
+          <div class="button-row" style="margin-top:10px;">
+            <button id="deletePointBtn" type="button">Delete Selected</button>
+            <button id="duplicatePointBtn" type="button">Duplicate Selected</button>
+          </div>
+          <p class="note" style="margin-top:10px;">Click inside the chart to add a point. Drag points to move them. The first and last keyframes keep endpoint slopes of <code>0</code>. Interior points use the previous and next segment slopes.</p>
+        </div>
+
+        <div class="section">
+          <h2>Export Rule</h2>
+          <div class="pill">inSlope = prev segment</div>
+          <div style="height:8px;"></div>
+          <div class="pill">outSlope = next segment</div>
+          <p class="note" style="margin-top:10px;">For example, a segment from <code>(0.05, 0.7)</code> to <code>(0.08, 0)</code> produces a slope of <code>(0 - 0.7) / (0.08 - 0.05) = -23.3333333333</code>. That becomes the first point’s <code>outSlope</code> and the next point’s <code>inSlope</code>.</p>
+        </div>
+
+        <div class="section">
+          <h2>Status</h2>
+          <div id="status" class="status"></div>
+        </div>
+      </aside>
+
+      <main class="panel workspace">
+        <div class="canvas-card">
+          <div class="canvas-wrap">
+            <canvas id="curveCanvas"></canvas>
+          </div>
+          <div class="legend">
+            <div id="curveMeta"></div>
+            <div id="selectionMeta"></div>
+          </div>
+        </div>
+
+        <div class="points-table">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Time</th>
+                <th>Value</th>
+                <th>inSlope</th>
+                <th>outSlope</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="pointsBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const SAMPLE_JSON = {
+      "version": "JIH|Hard|Default",
+      "maxBrc": 100,
+      "brcValueOnClear": 1,
+      "clearBankRefreshCountOnRevive": false,
+      "emptyBoardMod": 0,
+      "emptyBoardCurve": {
+        "serializedVersion": "2",
+        "m_Curve": [
+          { "serializedVersion": "3", "time": 0, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "serializedVersion": "3", "time": 1, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4
+      },
+      "alreadyInBankCurve": {
+        "serializedVersion": "2",
+        "m_Curve": [
+          { "serializedVersion": "3", "time": 0, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "serializedVersion": "3", "time": 1, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4
+      },
+      "canBePlacedMod": 0,
+      "canBePlacedCurve": {
+        "serializedVersion": "2",
+        "m_Curve": [
+          { "serializedVersion": "3", "time": 0, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "serializedVersion": "3", "time": 1, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4
+      },
+      "inBankModValue": 0,
+      "bigShapeMultiplier": 0,
+      "boardStartingPosition": 1,
+      "bigShapeCurve": {
+        "serializedVersion": "2",
+        "m_Curve": [
+          { "time": 0, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "time": 1, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4,
+        "length": 2,
+        "preWrapMode": 8,
+        "postWrapMode": 8
+      },
+      "complexShapeMultiplier": 0,
+      "complexShapeCurve": {
+        "serializedVersion": "2",
+        "m_Curve": [
+          { "time": 0, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "time": 1, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4,
+        "length": 2,
+        "preWrapMode": 8,
+        "postWrapMode": 8
+      },
+      "mercyMod": 0,
+      "terminatorMod": 1,
+      "sequentialTerminator": false,
+      "terminatorCurve": {
+        "serializedVersion": "2",
+        "m_Curve": [
+          { "time": 0, "value": 0, "inSlope": 0, "outSlope": 13.999999999999998, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "time": 0.05, "value": 0.7, "inSlope": 13.999999999999998, "outSlope": -23.333333333333332, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0.3333333433 },
+          { "time": 0.08, "value": 0, "inSlope": -23.333333333333332, "outSlope": 20, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0.3333333433 },
+          { "time": 0.12, "value": 0.8, "inSlope": 20, "outSlope": -5, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0.3333333433 },
+          { "time": 0.2, "value": 0.4, "inSlope": -5, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0.3333333433 },
+          { "time": 1, "value": 0.4, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4,
+        "length": 6,
+        "preWrapMode": 8,
+        "postWrapMode": 8
+      },
+      "complementaryFitCurve": {
+        "serializedVersion": "2",
+        "m_Curve": [
+          { "time": 0, "value": 1, "inSlope": 0, "outSlope": -0.49999999999999994, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "time": 0.2, "value": 0.9, "inSlope": -0.49999999999999994, "outSlope": -0.8000000000000002, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0.3333333433 },
+          { "time": 0.45, "value": 0.7, "inSlope": -0.8000000000000002, "outSlope": -0.5454545454545453, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0.3333333433 },
+          { "time": 1, "value": 0.4, "inSlope": -0.5454545454545453, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4,
+        "length": 4,
+        "preWrapMode": 8,
+        "postWrapMode": 8
+      },
+      "perfectFitModValue": 100,
+      "perfectFitComplexShapeBonus": 1,
+      "perfectFit100PercentBonus": 0,
+      "minimumPerfectFitPercentage": 0.67,
+      "minimumCellsFilledPercentage": 0.26,
+      "perfectFitWeightedRandomness": false,
+      "perfectFitIgnoreSameCellsCalculations": true,
+      "perfectFitCurve": {
+        "serializedVersion": "2",
+        "m_Curve": [
+          { "time": 0, "value": 10, "inSlope": 0, "outSlope": -141.42857142857144, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "time": 0.07, "value": 0.1, "inSlope": -141.42857142857144, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0.3333333433 },
+          { "time": 1, "value": 0.1, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4,
+        "length": 3,
+        "preWrapMode": 8,
+        "postWrapMode": 8
+      },
+      "seenBeforeModValue": 0,
+      "clearSeenBeforeModValueAfterBanks": 0,
+      "seenBeforeRotModValue": 0,
+      "clearSeenBeforeRotModValueAfterBanks": 0,
+      "seenBeforeExactCurve": {
+        "serializedVersion": "2",
+        "m_Curve": [
+          { "serializedVersion": "3", "time": 0, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "serializedVersion": "3", "time": 1, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4
+      },
+      "seenBeforeRotatedCurve": {
+        "serializedVersion": "2",
+        "m_Curve": [
+          { "serializedVersion": "3", "time": 0, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "serializedVersion": "3", "time": 1, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4
+      },
+      "rngStrategy": 2,
+      "cherryPickRange": 100,
+      "shapes": [
+        { "shapeGuid": "Shape_1_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 10 },
+        { "shapeGuid": "Shape_1_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 10 },
+        { "shapeGuid": "Shape_1_2", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 10 },
+        { "shapeGuid": "Shape_1_3", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 10 },
+        { "shapeGuid": "Shape_2_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 20 },
+        { "shapeGuid": "Shape_2_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 20 },
+        { "shapeGuid": "Shape_3_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 25 },
+        { "shapeGuid": "Shape_3_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 25 },
+        { "shapeGuid": "Shape_4_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 50 },
+        { "shapeGuid": "Shape_4_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 50 },
+        { "shapeGuid": "Shape_5_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 50 },
+        { "shapeGuid": "Shape_5_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 50 },
+        { "shapeGuid": "Shape_6_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 50 },
+        { "shapeGuid": "Shape_7_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_7_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_7_2", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_7_3", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_8_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 38 },
+        { "shapeGuid": "Shape_8_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 38 },
+        { "shapeGuid": "Shape_8_2", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 38 },
+        { "shapeGuid": "Shape_8_3", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 38 },
+        { "shapeGuid": "Shape_9_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 38 },
+        { "shapeGuid": "Shape_9_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 38 },
+        { "shapeGuid": "Shape_9_2", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 38 },
+        { "shapeGuid": "Shape_9_3", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 38 },
+        { "shapeGuid": "Shape_10_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_10_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_10_2", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_10_3", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_10_4", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_10_5", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_10_6", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_10_7", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 41 },
+        { "shapeGuid": "Shape_11_0", "onlyShowShapeAfterBrcValue": 10, "shapeScore": 10 },
+        { "shapeGuid": "Shape_11_1", "onlyShowShapeAfterBrcValue": 10, "shapeScore": 10 },
+        { "shapeGuid": "Shape_12_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 10 },
+        { "shapeGuid": "Shape_12_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 10 },
+        { "shapeGuid": "Shape_13_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 50 },
+        { "shapeGuid": "Shape_14_0", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 50 },
+        { "shapeGuid": "Shape_14_1", "onlyShowShapeAfterBrcValue": 0, "shapeScore": 50 },
+        { "shapeGuid": "Shape_16_0", "onlyShowShapeAfterBrcValue": 20, "shapeScore": 8 },
+        { "shapeGuid": "Shape_16_1", "onlyShowShapeAfterBrcValue": 20, "shapeScore": 8 },
+        { "shapeGuid": "Shape_16_2", "onlyShowShapeAfterBrcValue": 20, "shapeScore": 8 },
+        { "shapeGuid": "Shape_16_3", "onlyShowShapeAfterBrcValue": 20, "shapeScore": 8 },
+        { "shapeGuid": "Shape_17_0", "onlyShowShapeAfterBrcValue": 20, "shapeScore": 8 },
+        { "shapeGuid": "Shape_17_1", "onlyShowShapeAfterBrcValue": 20, "shapeScore": 8 },
+        { "shapeGuid": "Shape_17_2", "onlyShowShapeAfterBrcValue": 20, "shapeScore": 8 },
+        { "shapeGuid": "Shape_17_3", "onlyShowShapeAfterBrcValue": 20, "shapeScore": 8 }
+      ],
+      "OnReviveOnlyGenTheseShapeNames": ["Shape_0_0", "Shape_0_0", "Shape_0_0"],
+      "horizontalLineClearCurve": {
+        "m_Curve": [
+          { "time": 0, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0, "outWeight": 0.3333333433 },
+          { "time": 0.01, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0.3333333433 },
+          { "time": 1, "value": 0, "inSlope": 0, "outSlope": 0, "tangentMode": 69, "weightedMode": 0, "inWeight": 0.3333333433, "outWeight": 0 }
+        ],
+        "length": 3,
+        "preWrapMode": 8,
+        "postWrapMode": 8
+      }
+    };
+
+    const CURVE_OPTIONS = [
+      { key: "perfectFitCurve", label: "perfect fit", color: "#3b82f6" },
+      { key: "terminatorCurve", label: "terminator", color: "#ef4444" },
+      { key: "complementaryFitCurve", label: "complementary fit", color: "#f59e0b" },
+      { key: "horizontalLineClearCurve", label: "horizontal clear", color: "#22c55e" }
+    ];
+
+    const state = {
+      jsonData: structuredClone(SAMPLE_JSON),
+      curveNames: [],
+      currentCurveName: "",
+      visibleCurves: new Set(CURVE_OPTIONS.map((option) => option.key)),
+      selectedIndex: -1,
+      draggingIndex: -1
+    };
+
+    const canvas = document.getElementById("curveCanvas");
+    const ctx = canvas.getContext("2d");
+    const curveToggleList = document.getElementById("curveToggleList");
+    const pointsBody = document.getElementById("pointsBody");
+    const statusEl = document.getElementById("status");
+    const curveMetaEl = document.getElementById("curveMeta");
+    const selectionMetaEl = document.getElementById("selectionMeta");
+    const versionInput = document.getElementById("versionInput");
+    const jsonFileInput = document.getElementById("jsonFileInput");
+
+    const canvasPadding = { top: 24, right: 24, bottom: 38, left: 54 };
+
+    function roundNumber(value, digits = 10) {
+      return Number.parseFloat(Number(value).toFixed(digits));
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function findCurveFields(jsonData) {
+      return CURVE_OPTIONS
+        .map((option) => option.key)
+        .filter((key) => jsonData[key] && typeof jsonData[key] === "object" && Array.isArray(jsonData[key].m_Curve));
+    }
+
+    function getCurveLabel(curveName) {
+      return CURVE_OPTIONS.find((option) => option.key === curveName)?.label ?? curveName;
+    }
+
+    function getCurveColor(curveName) {
+      return CURVE_OPTIONS.find((option) => option.key === curveName)?.color ?? "#c4572a";
+    }
+
+    function getCurveContainer() {
+      return state.jsonData[state.currentCurveName];
+    }
+
+    function getCurvePoints() {
+      const curve = getCurveContainer();
+      return curve?.m_Curve ?? [];
+    }
+
+    function sortCurvePoints() {
+      getCurvePoints().sort((a, b) => a.time - b.time || a.value - b.value);
+    }
+
+    function createPointTemplate(time, value, referencePoint) {
+      const point = {
+        time: roundNumber(clamp(time, 0, 100), 4),
+        value: roundNumber(clamp(value, 0, 1), 4),
+        inSlope: 0,
+        outSlope: 0,
+        tangentMode: 69,
+        weightedMode: 0,
+        inWeight: 0.3333333433,
+        outWeight: 0.3333333433
+      };
+
+      if (referencePoint && "serializedVersion" in referencePoint) {
+        point.serializedVersion = "3";
+      }
+
+      return point;
+    }
+
+    function ensureCurveEndpoints(curve) {
+      if (!curve || !Array.isArray(curve.m_Curve)) return;
+
+      curve.m_Curve = curve.m_Curve.filter((point) => point && Number.isFinite(Number(point.time)) && Number.isFinite(Number(point.value)));
+      curve.m_Curve.sort((a, b) => a.time - b.time || a.value - b.value);
+
+      const referencePoint = curve.m_Curve[0];
+
+      if (curve.m_Curve.length === 0) {
+        curve.m_Curve.push(createPointTemplate(0, 0, referencePoint));
+        curve.m_Curve.push(createPointTemplate(100, 0, referencePoint));
+        return;
+      }
+
+      curve.m_Curve.forEach((point) => {
+        point.time = roundNumber(clamp(Number(point.time) || 0, 0, 100), 4);
+        point.value = roundNumber(clamp(Number(point.value) || 0, 0, 1), 4);
+      });
+
+      curve.m_Curve.sort((a, b) => a.time - b.time || a.value - b.value);
+
+      const firstPoint = curve.m_Curve[0];
+      if (firstPoint.time !== 0) {
+        curve.m_Curve.unshift(createPointTemplate(0, firstPoint.value, firstPoint));
+      } else {
+        firstPoint.time = 0;
+      }
+
+      const lastPoint = curve.m_Curve[curve.m_Curve.length - 1];
+      if (lastPoint.time !== 100) {
+        curve.m_Curve.push(createPointTemplate(100, lastPoint.value, lastPoint));
+      } else {
+        lastPoint.time = 100;
+      }
+    }
+
+    function applySlopeModel() {
+      const curve = getCurveContainer();
+      if (!curve) return;
+
+      ensureCurveEndpoints(curve);
+      sortCurvePoints();
+
+      const points = curve.m_Curve;
+      for (let i = 0; i < points.length; i += 1) {
+        const point = points[i];
+        const prev = points[i - 1];
+        const next = points[i + 1];
+        const inSlope = prev ? calculateSlope(prev, point) : 0;
+        const outSlope = next ? calculateSlope(point, next) : 0;
+
+        if ("serializedVersion" in point) {
+          point.serializedVersion = String(point.serializedVersion);
+        }
+
+        point.time = roundNumber(point.time);
+        point.value = roundNumber(point.value);
+        point.time = clamp(point.time, 0, 100);
+        point.value = clamp(point.value, 0, 1);
+        point.inSlope = Number.isFinite(inSlope) ? inSlope : 0;
+        point.outSlope = Number.isFinite(outSlope) ? outSlope : 0;
+        point.tangentMode = point.tangentMode ?? 69;
+        point.weightedMode = point.weightedMode ?? 0;
+
+        if (i === 0) {
+          point.inWeight = 0;
+          point.outWeight = points.length === 1 ? 0 : 0.3333333433;
+        } else if (i === points.length - 1) {
+          point.inWeight = 0.3333333433;
+          point.outWeight = 0;
+        } else {
+          point.inWeight = 0.3333333433;
+          point.outWeight = 0.3333333433;
+        }
+      }
+
+      curve.length = points.length;
+      curve.preWrapMode = curve.preWrapMode ?? 8;
+      curve.postWrapMode = curve.postWrapMode ?? 8;
+    }
+
+    function calculateSlope(a, b) {
+      const dx = b.time - a.time;
+      if (dx === 0) return 0;
+      return (b.value - a.value) / dx;
+    }
+
+    function refreshCurveList() {
+      state.curveNames = findCurveFields(state.jsonData);
+
+      if (!state.curveNames.includes(state.currentCurveName)) {
+        state.currentCurveName = state.curveNames[0] ?? "";
+      }
+      state.visibleCurves = new Set(
+        [...state.visibleCurves].filter((name) => state.curveNames.includes(name))
+      );
+      if (state.visibleCurves.size === 0 && state.curveNames.length > 0) {
+        state.visibleCurves.add(state.curveNames[0]);
+      }
+      renderCurveToggles();
+    }
+
+    function renderCurveToggles() {
+      curveToggleList.innerHTML = "";
+
+      for (const name of state.curveNames) {
+        const item = document.createElement("div");
+        item.className = "curve-toggle";
+        item.innerHTML = `
+          <input type="checkbox" ${state.visibleCurves.has(name) ? "checked" : ""}>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="swatch" style="background:${getCurveColor(name)}"></span>
+            <span>${getCurveLabel(name)}</span>
+          </div>
+          <button type="button">${state.currentCurveName === name ? "Active" : "Edit"}</button>
+        `;
+
+        const checkbox = item.querySelector("input");
+        const button = item.querySelector("button");
+
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) {
+            state.visibleCurves.add(name);
+          } else if (state.visibleCurves.size > 1) {
+            state.visibleCurves.delete(name);
+          } else {
+            checkbox.checked = true;
+            updateStatus("At least one curve must stay visible.");
+          }
+          render();
+        });
+
+        button.addEventListener("click", () => {
+          setCurrentCurve(name);
+        });
+
+        if (state.currentCurveName === name) {
+          button.classList.add("primary");
+        }
+
+        curveToggleList.appendChild(item);
+      }
+    }
+
+    function setCurrentCurve(name) {
+      state.currentCurveName = name;
+      state.selectedIndex = -1;
+
+      render();
+    }
+
+    function updateStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    function render() {
+      applySlopeModel();
+      renderCurveToggles();
+      renderMeta();
+      renderTable();
+      renderCanvas();
+    }
+
+    function renderMeta() {
+      const points = getCurvePoints();
+      const visibleLabels = [...state.visibleCurves].map(getCurveLabel).join(", ");
+      curveMetaEl.textContent = `Active: ${getCurveLabel(state.currentCurveName) || "No curve"} · Visible: ${visibleLabels}`;
+
+      if (state.selectedIndex >= 0 && points[state.selectedIndex]) {
+        const point = points[state.selectedIndex];
+        selectionMetaEl.textContent = `Selected: t=${roundNumber(point.time, 4)}, v=${roundNumber(point.value, 4)}`;
+      } else {
+        selectionMetaEl.textContent = "Selected: none";
+      }
+    }
+
+    function renderTable() {
+      const points = getCurvePoints();
+      pointsBody.innerHTML = "";
+
+      points.forEach((point, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td><input type="number" step="0.001" min="0" value="${point.time}"></td>
+          <td><input type="number" step="0.001" value="${point.value}"></td>
+          <td>${roundNumber(point.inSlope, 6)}</td>
+          <td>${roundNumber(point.outSlope, 6)}</td>
+          <td><button type="button">Select</button></td>
+        `;
+
+        const [timeInput, valueInput] = row.querySelectorAll("input");
+        const selectButton = row.querySelector("button");
+
+        timeInput.addEventListener("change", () => {
+          point.time = clamp(Number(timeInput.value) || 0, 0, 100);
+          applySlopeModel();
+          render();
+        });
+
+        valueInput.addEventListener("change", () => {
+          point.value = clamp(Number(valueInput.value) || 0, 0, 1);
+          applySlopeModel();
+          render();
+        });
+
+        selectButton.addEventListener("click", () => {
+          state.selectedIndex = index;
+          render();
+        });
+
+        if (index === state.selectedIndex) {
+          row.style.background = "rgba(196, 87, 42, 0.08)";
+        }
+
+        pointsBody.appendChild(row);
+      });
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function getYBounds() {
+      return {
+        min: 0,
+        max: 1
+      };
+    }
+
+    function chartRect() {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      return {
+        x: canvasPadding.left,
+        y: canvasPadding.top,
+        width: width - canvasPadding.left - canvasPadding.right,
+        height: height - canvasPadding.top - canvasPadding.bottom
+      };
+    }
+
+    function toCanvasPoint(point) {
+      const rect = chartRect();
+      const bounds = getYBounds();
+      const x = rect.x + (point.time / 100) * rect.width;
+      const y = rect.y + (1 - (point.value - bounds.min) / (bounds.max - bounds.min)) * rect.height;
+      return { x, y };
+    }
+
+    function fromCanvasPoint(x, y) {
+      const rect = chartRect();
+      const bounds = getYBounds();
+      const clampedX = Math.min(rect.x + rect.width, Math.max(rect.x, x));
+      const clampedY = Math.min(rect.y + rect.height, Math.max(rect.y, y));
+      const time = ((clampedX - rect.x) / rect.width) * 100;
+      const value = bounds.min + (1 - (clampedY - rect.y) / rect.height) * (bounds.max - bounds.min);
+      return {
+        time: roundNumber(clamp(time, 0, 100), 4),
+        value: roundNumber(clamp(value, 0, 1), 4)
+      };
+    }
+
+    function renderCanvas() {
+      resizeCanvas();
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const rect = chartRect();
+      const bounds = getYBounds();
+
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.fillStyle = "#fffdf9";
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.strokeStyle = "rgba(28, 28, 28, 0.08)";
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i <= 10; i += 1) {
+        const x = rect.x + (rect.width / 10) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, rect.y);
+        ctx.lineTo(x, rect.y + rect.height);
+        ctx.stroke();
+      }
+
+      for (let i = 0; i <= 6; i += 1) {
+        const y = rect.y + (rect.height / 6) * i;
+        ctx.beginPath();
+        ctx.moveTo(rect.x, y);
+        ctx.lineTo(rect.x + rect.width, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(28, 28, 28, 0.25)";
+      ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+
+      ctx.fillStyle = "#6a6258";
+      ctx.font = '12px "Avenir Next", "Segoe UI", sans-serif';
+      ctx.fillText(`0`, rect.x - 8, rect.y + rect.height + 22);
+      ctx.fillText(`100`, rect.x + rect.width - 24, rect.y + rect.height + 22);
+      ctx.fillText(`${roundNumber(bounds.max, 3)}`, 8, rect.y + 4);
+      ctx.fillText(`${roundNumber(bounds.min, 3)}`, 8, rect.y + rect.height);
+
+      for (const curveName of state.curveNames) {
+        if (!state.visibleCurves.has(curveName)) continue;
+        const points = state.jsonData[curveName]?.m_Curve ?? [];
+        if (points.length === 0) continue;
+
+        ctx.strokeStyle = getCurveColor(curveName);
+        ctx.lineWidth = curveName === state.currentCurveName ? 3.5 : 2;
+        ctx.globalAlpha = curveName === state.currentCurveName ? 1 : 0.65;
+        ctx.beginPath();
+
+        points.forEach((point, index) => {
+          const p = toCanvasPoint(point);
+          if (index === 0) {
+            ctx.moveTo(p.x, p.y);
+          } else {
+            ctx.lineTo(p.x, p.y);
+          }
+        });
+
+        ctx.stroke();
+
+        points.forEach((point, index) => {
+          const p = toCanvasPoint(point);
+          const isSelected = curveName === state.currentCurveName && index === state.selectedIndex;
+          ctx.beginPath();
+          ctx.fillStyle = isSelected ? "#1f7562" : getCurveColor(curveName);
+          ctx.arc(p.x, p.y, isSelected ? 7 : (curveName === state.currentCurveName ? 5 : 4), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        });
+      }
+
+      ctx.globalAlpha = 1;
+    }
+
+    function hitTest(mouseX, mouseY) {
+      const points = getCurvePoints();
+      for (let i = points.length - 1; i >= 0; i -= 1) {
+        const p = toCanvasPoint(points[i]);
+        const dx = mouseX - p.x;
+        const dy = mouseY - p.y;
+        if (Math.hypot(dx, dy) <= 10) {
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    function addPoint(time, value) {
+      const curve = getCurveContainer();
+      const existingPointShape = curve.m_Curve[0];
+      const point = createPointTemplate(time, value, existingPointShape);
+
+      curve.m_Curve.push(point);
+      applySlopeModel();
+      state.selectedIndex = curve.m_Curve.indexOf(point);
+      render();
+    }
+
+    function deleteSelectedPoint() {
+      if (state.selectedIndex < 0) return;
+      const points = getCurvePoints();
+      if (points.length <= 2) {
+        updateStatus("The endpoint keys at 0 and 100 are required.");
+        return;
+      }
+
+      points.splice(state.selectedIndex, 1);
+      state.selectedIndex = Math.min(state.selectedIndex, points.length - 1);
+      applySlopeModel();
+      render();
+    }
+
+    function duplicateSelectedPoint() {
+      const selected = getCurvePoints()[state.selectedIndex];
+      if (!selected) return;
+      addPoint(Math.min(100, selected.time + 1), selected.value);
+    }
+
+    function addMidpoint() {
+      const points = getCurvePoints();
+      if (points.length < 2) return;
+
+      let a = points[0];
+      let b = points[1];
+
+      if (state.selectedIndex >= 0 && state.selectedIndex < points.length - 1) {
+        a = points[state.selectedIndex];
+        b = points[state.selectedIndex + 1];
+      }
+
+      addPoint((a.time + b.time) / 2, (a.value + b.value) / 2);
+    }
+
+    function downloadJson() {
+      const activeCurveName = state.currentCurveName;
+      applySlopeModel();
+      for (const curveName of findCurveFields(state.jsonData)) {
+        state.currentCurveName = curveName;
+        applySlopeModel();
+      }
+      state.currentCurveName = activeCurveName;
+      state.jsonData.version = versionInput.value.trim() || "curve-export";
+      if (!Array.isArray(state.jsonData.shapes)) {
+        state.jsonData.shapes = structuredClone(SAMPLE_JSON.shapes);
+      }
+      const content = JSON.stringify(state.jsonData, null, 2);
+      const blob = new Blob([content], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(state.jsonData.version || "curve-export").replace(/[^\w|-]+/g, "_")}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      updateStatus(`Downloaded ${(state.jsonData.version || "curve-export").replace(/[^\w|-]+/g, "_")}.json`);
+    }
+
+    function loadJsonObject(data) {
+      state.jsonData = data;
+      if (!Array.isArray(state.jsonData.shapes)) {
+        state.jsonData.shapes = structuredClone(SAMPLE_JSON.shapes);
+      }
+      for (const curveName of findCurveFields(state.jsonData)) {
+        ensureCurveEndpoints(state.jsonData[curveName]);
+      }
+      versionInput.value = state.jsonData.version || "";
+      refreshCurveList();
+      setCurrentCurve(state.currentCurveName);
+      updateStatus("JSON loaded.");
+    }
+
+    canvas.addEventListener("mousedown", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const hit = hitTest(x, y);
+
+      if (hit >= 0) {
+        state.selectedIndex = hit;
+        state.draggingIndex = hit;
+        render();
+        return;
+      }
+
+      const point = fromCanvasPoint(x, y);
+      addPoint(point.time, point.value);
+      updateStatus(`Point added at time ${point.time}, value ${point.value}`);
+    });
+
+    window.addEventListener("mousemove", (event) => {
+      if (state.draggingIndex < 0) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const point = fromCanvasPoint(x, y);
+      const current = getCurvePoints()[state.draggingIndex];
+      current.time = point.time;
+      current.value = point.value;
+      applySlopeModel();
+      state.selectedIndex = getCurvePoints().indexOf(current);
+      render();
+    });
+
+    window.addEventListener("mouseup", () => {
+      state.draggingIndex = -1;
+    });
+
+    versionInput.addEventListener("input", () => {
+      state.jsonData.version = versionInput.value;
+    });
+
+    jsonFileInput.addEventListener("change", async (event) => {
+      const [file] = event.target.files;
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        loadJsonObject(data);
+      } catch (error) {
+        updateStatus(`Failed to load JSON: ${error.message}`);
+      }
+    });
+
+    document.getElementById("downloadBtn").addEventListener("click", downloadJson);
+    document.getElementById("resetSampleBtn").addEventListener("click", () => {
+      loadJsonObject(structuredClone(SAMPLE_JSON));
+      updateStatus("Reset to embedded sample JSON.");
+    });
+    document.getElementById("deletePointBtn").addEventListener("click", deleteSelectedPoint);
+    document.getElementById("duplicatePointBtn").addEventListener("click", duplicateSelectedPoint);
+    document.getElementById("addPointBtn").addEventListener("click", addMidpoint);
+    document.getElementById("sortPointsBtn").addEventListener("click", () => {
+      applySlopeModel();
+      render();
+    });
+
+    window.addEventListener("resize", render);
+
+    versionInput.value = state.jsonData.version || "";
+    refreshCurveList();
+    setCurrentCurve(state.curveNames.includes("perfectFitCurve") ? "perfectFitCurve" : state.curveNames[0]);
+    updateStatus("Sample JSON loaded. Choose a curve, edit points, then download the JSON.");
+  </script>
+</body>
+</html>
